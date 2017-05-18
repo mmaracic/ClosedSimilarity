@@ -1,0 +1,9 @@
+//instalacija
+D:\Projekti\elasticsearch\distribution\zip\target\integ tests\elasticsearch-2.3.2-SNAPSHOT\bin>
+plugin install file:///D:/Projekti/PluginAnalysisCroatian/target/PluginAnalysisCroatian-1.0-SNAPSHOT-bin.zip
+
+//deinstalacija
+D:\Projekti\elasticsearch\distribution\zip\target\integ tests\elasticsearch-2.3.2-SNAPSHOT\bin>plugin remove analysis-croatian
+
+//popis pluginova
+D:\Projekti\elasticsearch\distribution\zip\target\integ tests\elasticsearch-2.3.2-SNAPSHOT\bin>plugin list
