@@ -1,9 +1,53 @@
 //instalacija
 D:\Projekti\elasticsearch\distribution\zip\target\integ tests\elasticsearch-2.3.2-SNAPSHOT\bin>
-plugin install file:///D:/Projekti/PluginAnalysisCroatian/target/PluginAnalysisCroatian-1.0-SNAPSHOT-bin.zip
+plugin install file:///D:/Projekti/ClosedSimilarity/target/ClosedSimilarity-1.0-SNAPSHOT-bin.zip
 
 //deinstalacija
-D:\Projekti\elasticsearch\distribution\zip\target\integ tests\elasticsearch-2.3.2-SNAPSHOT\bin>plugin remove analysis-croatian
+D:\Projekti\elasticsearch\distribution\zip\target\integ tests\elasticsearch-2.3.2-SNAPSHOT\bin>plugin remove closed-similarity
 
 //popis pluginova
 D:\Projekti\elasticsearch\distribution\zip\target\integ tests\elasticsearch-2.3.2-SNAPSHOT\bin>plugin list
+
+//Primjer umetanja funkcije sličnosti
+curl -s -XPUT "http://localhost:9200/test_index" -d '
+{
+  "settings": {
+    "index": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "similarity": {
+        "default": {
+          "type": "closed-similarity"
+        }
+      }
+    }
+  }
+
+//Konfigurirana sličnost - konfiguracija kod mappinga indexa
+https://www.elastic.co/guide/en/elasticsearch/guide/current/changing-similarities.html
+
+PUT /my_index
+{
+  "settings": {
+    "similarity": {
+      "my_bm25": { 
+        "type": "BM25",
+        "b":    0 
+      }
+    }
+  },
+  "mappings": {
+    "doc": {
+      "properties": {
+        "title": {
+          "type":       "string",
+          "similarity": "my_bm25" 
+        },
+        "body": {
+          "type":       "string",
+          "similarity": "BM25" 
+        }
+      }
+    }
+  }
+}

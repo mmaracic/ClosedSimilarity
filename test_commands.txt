@@ -1,0 +1,132 @@
+#similarity tests
+GET ar_test/_settings
+POST ar_test/_close
+POST ar_test/_open
+
+DELETE ar_test
+PUT ar_test{
+	"settings" : {
+		"number_of_shards" : 5,
+		"number_of_replicas" : 1,
+		"analysis" : {
+			"filter" : {
+				"croatian_stop" : {
+					"type" : "stop",
+					"stopwords" : ["ulica", "grad", "trg", "naselje"]
+				}
+			},
+			"tokenizer" : {
+				"FrontBackTokenizer" : {
+					"type" : "croatian_backfront_tokenizer",
+					"takeBack" : 0,
+					"takeFront" : 3
+				}
+			},
+			"analyzer" : {
+				"cro_analyzer" : {
+					"type" : "custom",
+					"char_filter" : [],
+					"tokenizer" : "FrontBackTokenizer",
+					"filter" : ["lowercase", "croatian_stop"]
+				},
+				"text_number_analyzer" : {
+					"type" : "custom",
+					"char_filter" : [],
+					"tokenizer" : "croatian_number_tokenizer",
+					"filter" : []
+				}
+			}
+		},
+		"similarity" : {
+			"default" : {
+				"type" : "closed-similarity"
+			}
+		},
+		"mappings" : {
+			"Address" : {
+				"properties" : {
+					"streetNumber" : {
+						"type" : "string"
+					},
+					"streetNumberAlfa" : {
+						"type" : "string"
+					},
+					"geometry" : {
+						"type" : "geo_point"
+					},
+					"_id" : {
+						"type" : "integer"
+					},
+					"streetName" : {
+						"type" : "string"
+					},
+					"settlementName" : {
+						"type" : "string"
+					},
+					"postalOfficeName" : {
+						"type" : "string"
+					},
+					"postalCode" : {
+						"type" : "integer"
+					},
+					"countyName" : {
+						"type" : "string"
+					}
+				}
+			}
+		}
+	}
+}
+
+POST ar_test/Address/
+{
+    "streetNumber":"21",
+    "streetNumberAlfa":null,
+    "countyName":"KANFANAR",
+    "geometry":"POINT(283458.62 4999697.39)",
+    "streetName":"Ulica Dobriše Cesarića",
+    "settlementName":"Cista provo",
+    "postalOfficeName":"Cista provo",
+    "postalCode":52341    
+}
+
+POST ar_test/Address/
+{
+    "streetNumber":"21",
+    "streetNumberAlfa":null,
+    "countyName":"KANFANAR",
+    "geometry":"POINT(283458.62 4999697.39)",
+    "streetName":"Ulica Dobriše Cesarića",
+    "settlementName":"Cista",
+    "postalOfficeName":"Cista",
+    "postalCode":52341    
+}
+
+POST ar_test/Address/
+{
+    "streetNumber":"21",
+    "streetNumberAlfa":null,
+    "countyName":"KANFANAR",
+    "geometry":"POINT(283458.62 4999697.39)",
+    "streetName":"Ulica Dobriše Cesarića",
+    "settlementName":"Sisak",
+    "postalOfficeName":"Sisak",
+    "postalCode":52341    
+}
+
+POST ar_test/_search
+{
+    "query": { 
+        "bool" : {
+          "should" : [ {
+            "match" : {
+              "_all" : {
+                "query" : "Cesarićeva, Cista provo",
+                "type" : "boolean",
+                "fuzziness" : "AUTO"
+              }
+            }
+          } ]
+        }   
+    }
+}
