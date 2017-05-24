@@ -8,16 +8,19 @@ package org.elasticsearch.index.similarity;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import org.apache.log4j.Logger;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.FieldInvertState;
 import org.apache.lucene.index.Fields;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.CollectionStatistics;
 import org.apache.lucene.search.TermStatistics;
 import org.apache.lucene.search.similarities.Similarity;
@@ -199,7 +202,7 @@ public class ClosedSimilarity extends Similarity{
                     long termFreq = indexReader.totalTermFreq(term);
                     if (termFreq>0){
                         fieldFrequency.put(field, termFreq);
-                        log.info("Term: "+rawTerm.utf8ToString()+" frequency: "+rawTerm.utf8ToString()+" in field: "+field);
+                        log.info("Term: "+rawTerm.utf8ToString()+" frequency: "+termFreq+" in field: "+field);
                         totalTermFreq+=termFreq;
                     } else {
                         log.info("Term: "+rawTerm.utf8ToString()+" frequency is 0 in field: "+field);
@@ -236,8 +239,8 @@ public class ClosedSimilarity extends Similarity{
                 while(it.hasNext()){
                     String fName = it.next();
                     if (attribWeights.containsKey(fName)){
-                        long pow = attribWeights.get(fName);
-                        norm += Math.pow(2d, pow);
+                        long attWeight = attribWeights.get(fName);
+                        norm += attWeight;
                     }
                 }
                 log.info("Index norm: "+norm);
@@ -254,40 +257,61 @@ public class ClosedSimilarity extends Similarity{
          * @param termIdfs
          * @return 
          */
-        private float docCoord(Document doc, Map<String, QueryTokenInfo> termInfos){
-            log.info("Estimating doc coordination. for doc id: "+doc);
-            Map<String, Long> docTokenFreq = new HashMap<>();
-            long docTokenCount = 0;
-            for(String field: attribWeights.keySet()){
-                String[] tokens = doc.getValues(field);
-                for(String token: tokens){
-                    docTokenCount++;
-                    if (docTokenFreq.containsKey(token)){
-                        long freq = docTokenFreq.get(token);
-                        docTokenFreq.put(token, freq+1l);
+        private float docCoord(int docId, LeafReader indexReader, Map<String, QueryTokenInfo> termInfos){
+            log.info("Estimating doc coordination");
+            try{
+    //            List<IndexableField> fields = doc.getFields();
+    //            for(IndexableField field: fields){
+    //                log.info("Field name: "+field.name()+" value: "+field.readerValue());
+    //            }
+                Map<String, Long> docTokenFreq = new HashMap<>();
+                long docTokenCount = 0;
+                for(String field: attribWeights.keySet()){
+                    Terms terms = indexReader.getTermVector(docId, field);
+                    if (terms != null){
+                        TermsEnum it = terms.iterator();
+                        //String[] tokens = doc.getValues(field);
+                        //log.info("Doc for field: "+field+" tokens: "+String.join(" # ",tokens));
+                        //for(String token: tokens){
+                        BytesRef term = it.next();
+                        while(term != null){
+                            String token = term.utf8ToString();
+                            log.info("Counting field: "+field+" term: "+term);
+                            docTokenCount++;
+                            if (docTokenFreq.containsKey(token)){
+                                long freq = docTokenFreq.get(token);
+                                docTokenFreq.put(token, freq+1l);
+                            } else {
+                                log.info("Document's field: "+field+" has token: "+token);
+                                docTokenFreq.put(token, 1l);
+                            }
+                            term = it.next();
+                        }
                     } else {
-                        log.info("Document's field: "+field+" has token: "+token);
-                        docTokenFreq.put(token, 1l);
+                        log.info("Term vector for field: "+field+" is null!");
                     }
                 }
-            }
-            
-            long missing = 0;
-            for (String docToken: docTokenFreq.keySet()){
-                if (!termInfos.containsKey(docToken)){
-                    log.info("Document's token missing: "+docToken);
-                    missing+= docTokenFreq.get(docToken);
-                } else {
-                    long docCount = docTokenFreq.get(docToken);
-                    long queryCount = termInfos.get(docToken).getCount();
-                    long diff = (docCount > queryCount)?docCount - queryCount:0;
-                    missing += diff;
+
+                long missing = 0;
+                for (String docToken: docTokenFreq.keySet()){
+                    if (!termInfos.containsKey(docToken)){
+                        log.info("Document's token missing: "+docToken);
+                        missing+= docTokenFreq.get(docToken);
+                    } else {
+                        long docCount = docTokenFreq.get(docToken);
+                        long queryCount = termInfos.get(docToken).getCount();
+                        long diff = (docCount > queryCount)?docCount - queryCount:0;
+                        missing += diff;
+                    }
                 }
+                log.info("Document's tokens missing in query: "+missing);
+                float docCoord = (float)(docTokenCount - missing)/docTokenCount;
+                log.info("Document's coordination: "+docCoord);
+                return docCoord;
+            } catch(IOException ex){
+                
             }
-            log.info("Document's tokens missing in query: "+missing);
-            float docCoord = (float)(docTokenCount - missing)/docTokenCount;
-            log.info("Document's coordination: "+docCoord);
-            return docCoord;
+            return 1f;
         }
         
         
@@ -297,7 +321,7 @@ public class ClosedSimilarity extends Similarity{
             try {
                 log.info("ID of the document: "+doc);
                 Document document = context.reader().document(doc);
-                float docCoord = docCoord(document, csw.termInfos);
+                float docCoord = docCoord(doc, context.reader(), csw.termInfos);
 
                 float score = 0;
                 float indexNorm = estimateIndexNorm(context.reader());
@@ -307,6 +331,7 @@ public class ClosedSimilarity extends Similarity{
                     if (qti.getAttribute().compareTo("_all")==0){
                         termNorm = estimateTermWeight(context.reader(), qti.getRawToken());
                     }
+                    log.info("Term norm is: "+termNorm);
                     float idfGain =(9f + (2f * qti.getIdf()))/10f;
                     log.info("Idf gain for term "+term+" is: "+idfGain);
                     float sumPart = (termNorm/indexNorm) * idfGain;
