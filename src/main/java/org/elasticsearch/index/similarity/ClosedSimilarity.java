@@ -6,6 +6,8 @@
 package org.elasticsearch.index.similarity;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.log4j.Logger;
 import org.apache.lucene.index.FieldInvertState;
 import org.apache.lucene.index.LeafReaderContext;
@@ -14,7 +16,6 @@ import org.apache.lucene.search.CollectionStatistics;
 import org.apache.lucene.search.TermStatistics;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.util.BytesRef;
-import org.apache.lucene.util.SmallFloat;
 
 /**
  *
@@ -26,34 +27,17 @@ public class ClosedSimilarity extends Similarity{
     
     public ClosedSimilarity(){}
 
-    /** The default implementation encodes <code>boost / sqrt(length)</code>
-     * with {@link SmallFloat#floatToByte315(float)}.  This is compatible with 
-     * Lucene's default implementation.  If you change this, then you should 
-     * change {@link #decodeNormValue(byte)} to match. */
-    protected byte encodeNormValue(float boost, int fieldLength) {
-        
-        byte encValue = SmallFloat.floatToByte315(boost / (float) Math.sqrt(fieldLength));
-        log.info("Encoding value: Boost: "+boost+" fieldLEngth: "+fieldLength+" encByte: "+encValue);
-        return encValue;
-    }
-
-    /** The default implementation returns <code>1 / f<sup>2</sup></code>
-     * where <code>f</code> is {@link SmallFloat#byte315ToFloat(byte)}. */
-    protected float decodeNormValue(byte b) {
-      float decValue = NORM_TABLE[b & 0xFF];
-      log.info("Decoding value: decByte: "+b+" decValue: "+decValue);
-      return decValue;
-    }
 
     /** Cache of decoded bytes. */
-    private static final float[] NORM_TABLE = new float[256];
+    private static final Map<String, Long> attribWeights = new HashMap<>();
 
     static {
-      for (int i = 1; i < 256; i++) {
-        float f = SmallFloat.byte315ToFloat((byte)i);
-        NORM_TABLE[i] = 1.0f / (f*f);
-      }
-      NORM_TABLE[0] = 1.0f / NORM_TABLE[255]; // otherwise inf
+        attribWeights.put("streetNumberAlfa", 1l);
+        attribWeights.put("streetNumber", 2l);
+        attribWeights.put("streetName", 4l);
+        attribWeights.put("postalCode", 8l);
+        attribWeights.put("settlementName", 16l);
+        attribWeights.put("countyName", 32l);
     }
     
     /**
@@ -77,16 +61,19 @@ public class ClosedSimilarity extends Similarity{
      */
     @Override
     public float queryNorm(float valueForNormalization) {
-        float qNorm = 1f/valueForNormalization;
-        log.info("Calculating query norm: "+qNorm);
-        return qNorm;
+        //float qNorm = 1f/valueForNormalization;
+        //log.info("Calculating query norm: "+qNorm);
+        return 1f;
     }
     
     @Override
     public long computeNorm(FieldInvertState state) {
-        final int numTerms = state.getLength();
-        log.info("Calculating term normalization. Term: "+state.getName()+" Value: "+numTerms);
-        return encodeNormValue(state.getBoost(), numTerms);
+        long normValue = 1l;
+        if (attribWeights.containsKey(state.getName())){
+            normValue = attribWeights.get(state.getName());
+        }
+        log.info("Calculating term normalization. Term: "+state.getName()+" Value: "+normValue);
+        return normValue;
     }
 
     /** Implemented as <code>log(1 + (numDocs - docFreq + 0.5)/(docFreq + 0.5))</code>. */
