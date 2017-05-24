@@ -266,6 +266,10 @@ public class ClosedSimilarity extends Similarity{
     //            }
                 Map<String, Long> docTokenFreq = new HashMap<>();
                 long docTokenCount = 0;
+                boolean vectors = indexReader.getFieldInfos().hasVectors();
+                if (!vectors){
+                    log.info("No term vectors on any field!");
+                }
                 for(String field: attribWeights.keySet()){
                     Terms terms = indexReader.getTermVector(docId, field);
                     if (terms != null){
