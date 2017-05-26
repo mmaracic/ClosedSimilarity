@@ -10,6 +10,9 @@ import static com.google.common.io.Files.createTempDir;
 import java.io.IOException;
 import java.util.concurrent.Executors;
 import org.apache.lucene.search.similarities.Similarity;
+import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.BytesRefBuilder;
+import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.inject.Injector;
@@ -33,6 +36,8 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPoolModule;
 import org.junit.After;
 import org.junit.AfterClass;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -90,4 +95,34 @@ public class ClosedSimilarityTest {
 
         return injector.getInstance(SimilarityService.class);
     }    */
+    
+    @Test
+    public void testDecodeInteger(){
+        int testNumber = 52341;
+        byte[] testBytes = {0x60, 0x8, 0x0, 0x3, 0x18, 0x75};
+        BytesRef br = new BytesRef(testBytes);
+        int resultNumber = NumericUtils.prefixCodedToInt(br);
+        assertEquals("Numbers are not the same", testNumber, resultNumber);
+    }
+    
+    @Test
+    public void testCodeInteger() {
+        int shift = 0;
+        int testNumber = 52341;
+        byte[] testBytes = {0x60, 0x8, 0x0, 0x3, 0x18, 0x75};
+        
+        BytesRefBuilder brb = new BytesRefBuilder();
+        NumericUtils.intToPrefixCoded(testNumber, shift, brb);
+        BytesRef br = brb.toBytesRef();
+        byte[] b = br.bytes;
+        
+        assertEquals("Byte array is not of the same length", testBytes.length, b.length);
+        boolean different = false;
+        for(int i=0; i<b.length; i++){
+            if (b[i] != testBytes[i]){
+                different = true;
+            }
+        }
+        assertFalse("Array bytes are not the same!", different);       
+    }
 }
