@@ -6,7 +6,6 @@
 package org.elasticsearch.index.similarity;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -75,8 +74,8 @@ public class ClosedSimilarity extends Similarity{
      */
     @Override
     public float coord(int overlap, int maxOverlap) {
-        float coord = overlap/(float)maxOverlap;
-        log.info("Calculating query coordination. Value: "+coord);
+        float coord = maxOverlap;
+        log.info("Calculating query coordination. Overlap: "+overlap+" Max overlap: "+maxOverlap+" Value: "+coord);
         return coord;
     }
 
@@ -122,7 +121,7 @@ public class ClosedSimilarity extends Similarity{
             final float termIdf = idf(df, max);
             QueryTokenInfo qti = new QueryTokenInfo(stat.term(), collectionStats.field(),df,termIdf);
             termIdfs.put(stat.term().utf8ToString(), qti);
-            log.info("Query term: "+stat.term().utf8ToString()+" Binary: "+stat.term().toString()+" frequency: "+df+" Appearance: "+df);
+//            log.info("Query term: "+stat.term().utf8ToString()+" Binary: "+stat.term().toString()+" frequency: "+df+" Appearance: "+df);
             desc += stat.term().utf8ToString() + " # ";
         }
         log.info("Creating sim weight for field: "+desc);
@@ -232,7 +231,7 @@ public class ClosedSimilarity extends Similarity{
                             BytesRefBuilder brb = new BytesRefBuilder();
                             NumericUtils.intToPrefixCoded(tokenValue, shift, brb);
                             BytesRef br = brb.toBytesRef();
-                            log.info("Converting integer term: "+tokenValue+" to internal encoding "+br.toString());
+//                            log.info("Converting integer term: "+tokenValue+" to internal encoding "+br.toString());
                             term = new Term(field, br);
                             termFreq = indexReader.docFreq(term);
                         } else {
@@ -244,24 +243,24 @@ public class ClosedSimilarity extends Similarity{
                             //log.info("Term: "+rawTermInfo.getRawToken().utf8ToString()+" frequency: "+termFreq+" in field: "+field);
                             totalTermFreq+=termFreq;
                         } else {
-                            log.info("Term: "+term.bytes().utf8ToString()+" frequency is "+termFreq+" in field: "+field);
-                            StringBuilder info = new StringBuilder("Field: "+field+" Terms: ");
-                            Terms ts = indexReader.terms(field);
-                            if (ts!=null){
-                                TermsEnum tsIt = ts.iterator();
-                                BytesRef  tsItem = tsIt.next();
-                                while(tsItem != null){
-                                    if (attributeType == AttributeType.Integer){
-                                        int resultNumber = NumericUtils.prefixCodedToInt(tsItem);
-                                        info.append(resultNumber+" | ");
-                                        info.append(tsItem.toString() +" # ");
-                                    } else {
-                                        info.append(tsItem+" # ");
-                                    }
-                                    tsItem = tsIt.next();
-                                }
-                            }
-                            log.info(info);
+//                            log.info("Term: "+term.bytes().utf8ToString()+" frequency is "+termFreq+" in field: "+field);
+//                            StringBuilder info = new StringBuilder("Field: "+field+" Terms: ");
+//                            Terms ts = indexReader.terms(field);
+//                            if (ts!=null){
+//                                TermsEnum tsIt = ts.iterator();
+//                                BytesRef  tsItem = tsIt.next();
+//                                while(tsItem != null){
+//                                    if (attributeType == AttributeType.Integer){
+//                                        int resultNumber = NumericUtils.prefixCodedToInt(tsItem);
+//                                        info.append(resultNumber+" | ");
+//                                        info.append(tsItem.toString() +" # ");
+//                                    } else {
+//                                        info.append(tsItem+" # ");
+//                                    }
+//                                    tsItem = tsIt.next();
+//                                }
+//                            }
+//                            log.info(info);
                         }
                         //assigning weight by maximum frequency
                         if (termFreq > maxTermFrequency){
@@ -333,31 +332,46 @@ public class ClosedSimilarity extends Similarity{
                     log.info("No term vectors on any field!");
                 }
                 for(String field: attribWeights.keySet()){
-                    Terms terms = indexReader.getTermVector(docId, field);
-                    if (terms != null){
-                        TermsEnum it = terms.iterator();
-                        BytesRef term = it.next();
-                        while(term != null){
-                            String token = term.utf8ToString();
-                            log.info("Counting field: "+field+" term: "+token);
+                    AttributeType attributeType = attribTypes.get(field);
+                    if (attributeType == AttributeType.Integer){
+                        String fValue = indexReader.document(docId).get(field);
+                        if (fValue != null){
                             docTokenCount++;
-                            if (docTokenFreq.containsKey(token)){
-                                long freq = docTokenFreq.get(token);
-                                docTokenFreq.put(token, freq+1l);
+                            log.info("Counting integer field: "+field+" term: "+fValue);
+                            if (docTokenFreq.containsKey(fValue)){
+                                long freq = docTokenFreq.get(fValue);
+                                docTokenFreq.put(fValue, freq+1l);
                             } else {
-                                docTokenFreq.put(token, 1l);
+                                docTokenFreq.put(fValue, 1l);
                             }
-                            term = it.next();
                         }
                     } else {
-                        log.info("Term vector for field: "+field+" is null!");
+                        Terms terms = indexReader.getTermVector(docId, field);
+                        if (terms != null){
+                            TermsEnum it = terms.iterator();
+                            BytesRef term = it.next();
+                            while(term != null){
+                                String token = term.utf8ToString();
+                                log.info("Counting field: "+field+" term: "+token);
+                                docTokenCount++;
+                                if (docTokenFreq.containsKey(token)){
+                                    long freq = docTokenFreq.get(token);
+                                    docTokenFreq.put(token, freq+1l);
+                                } else {
+                                    docTokenFreq.put(token, 1l);
+                                }
+                                term = it.next();
+                            }
+                        } else {
+                            log.info("Term vector for field: "+field+" is null!");
+                        }
                     }
                 }
                 
                 //listing query terms
-                for(String queryTerm: termInfos.keySet()){
-                    log.info("Query term: "+queryTerm);
-                }
+//                for(String queryTerm: termInfos.keySet()){
+//                    log.info("Query term: "+queryTerm);
+//                }
                 
                 long missing = 0;
                 for (String docToken: docTokenFreq.keySet()){
@@ -390,7 +404,7 @@ public class ClosedSimilarity extends Similarity{
         @Override
         public float score(int doc, float freq) {
             try {
-                log.info("ID of the document: "+doc);
+                log.info("Scoring: ID of the document: "+doc+" Sloppy frequency: "+freq);
                 Document document = context.reader().document(doc);
                 float docCoord = docCoord(doc, context.reader(), csw.termInfos);
 
@@ -439,7 +453,7 @@ public class ClosedSimilarity extends Similarity{
         @Override
         public float computeSlopFactor(int distance) {
             float slop = 1.0f / (distance + 1);
-            log.info("Computing slope factor. Scorer: "+csw.desc+" Slop: "+slop);
+            log.info("Computing slope factor. Scorer: "+csw.desc+" Distance: "+distance+" Slop: "+slop);
             return slop;
         }
 
