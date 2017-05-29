@@ -8,6 +8,7 @@ package org.elasticsearch.index.analysis.test;
 
 import static com.google.common.io.Files.createTempDir;
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.util.BytesRef;
@@ -124,5 +125,30 @@ public class ClosedSimilarityTest {
             }
         }
         assertFalse("Array bytes are not the same!", different);       
+    }
+    
+    @Test
+    public void testSettings(){
+        Settings settings = Settings.settingsBuilder()
+                .put("attributeWeights.streetNumberAlfa", 1)
+                .put("attributeWeights.streetNumber", 2)
+                .put("attributeWeights.streetName", 4)
+                .put("attributeWeights.postalCode", 8)
+                .put("attributeWeights.settlementName", 16)
+                .put("attributeWeights.countyName", 32)
+                .put("attributeTypes.streetNumberAlfa", "String")
+                .put("attributeTypes.streetNumber", "String")
+                .put("attributeTypes.streetName", "String")
+                .put("attributeTypes.postalCode", "Integer")
+                .put("attributeTypes.settlementName", "String")
+                .put("attributeTypes.countyName", "String")
+                .build();
+        
+        System.out.println("Settings: "+settings.toDelimitedString('#'));
+        Map<String, Object> attributeWeights = settings.getByPrefix("attributeWeights.").getAsStructuredMap();
+        System.out.println("Provider raw parameters: Weights: "+attributeWeights.toString());
+        Map<String, String> attributeTypes = settings.getByPrefix("attributeTypes.").getAsMap();
+        System.out.println("Provider raw parameters: Weights: "+attributeTypes.toString());
+        
     }
 }

@@ -11,7 +11,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Level;
 import org.apache.log4j.Logger;
-import org.apache.lucene.document.Document;
 import org.apache.lucene.index.FieldInvertState;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.LeafReader;
@@ -32,11 +31,14 @@ import org.apache.lucene.util.NumericUtils;
  */
 public class ClosedSimilarity extends Similarity{
     
-    private static Logger log = Logger.getLogger(ClosedSimilarity.class);
+    private static final Logger log = Logger.getLogger(ClosedSimilarity.class);
     
-    public ClosedSimilarity(){}
+    public ClosedSimilarity(Map<String, Long> attribWeights, Map<String, AttributeType> attribTypes){
+        this.attribWeights.putAll(attribWeights);
+        this.attribTypes.putAll(attribTypes);
+    }
     
-    private enum AttributeType {
+    public enum AttributeType {
         String,
         Integer,
         Float,
@@ -44,29 +46,13 @@ public class ClosedSimilarity extends Similarity{
     }
     
     //multiplicity of attributes in a query, needed when calculating score
-    private static final Map<String, Long> attributeMultiplicity = new HashMap<>();
+    private final Map<String, Long> attributeMultiplicity = new HashMap<>();
 
     /** list of fields/attributes and their weights */
-    private static final Map<String, Long> attribWeights = new HashMap<>();
+    private final Map<String, Long> attribWeights = new HashMap<>();
     
     /** list of fields/attributes and their types */
-    private static final Map<String, AttributeType> attribTypes = new HashMap<>();
-
-    static {
-        attribWeights.put("streetNumberAlfa", 1l);
-        attribWeights.put("streetNumber", 2l);
-        attribWeights.put("streetName", 4l);
-        attribWeights.put("postalCode", 8l);
-        attribWeights.put("settlementName", 16l);
-        attribWeights.put("countyName", 32l);
-        
-        attribTypes.put("streetNumberAlfa", AttributeType.String);
-        attribTypes.put("streetNumber", AttributeType.String);
-        attribTypes.put("streetName", AttributeType.String);
-        attribTypes.put("postalCode", AttributeType.Integer);
-        attribTypes.put("settlementName", AttributeType.String);
-        attribTypes.put("countyName", AttributeType.String);
-    }
+    private final Map<String, AttributeType> attribTypes = new HashMap<>();
     
     /**
      * Query term matching

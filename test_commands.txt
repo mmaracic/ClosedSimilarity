@@ -40,7 +40,23 @@ PUT ar_test
     	},
     	"similarity" : {
     		"default" : {
-    			"type" : "closed-similarity"
+    			"type" : "closed-similarity",
+                        "attributeWeights": {
+                            "streetNumberAlfa": 1,
+                            "streetNumber": 2,
+                            "streetName": 4,
+                            "postalCode": 8,
+                            "settlementName": 16,
+                            "countyName": 32
+                        },
+                        "attributeTypes": {
+                            "streetNumberAlfa": "String",
+                            "streetNumber": "String",
+                            "streetName": "String",
+                            "postalCode": "Integer",
+                            "settlementName": "String",
+                            "countyName": "String"
+                        }                
     		}
     	}
     },
