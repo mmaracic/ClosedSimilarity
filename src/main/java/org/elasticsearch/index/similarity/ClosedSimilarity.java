@@ -42,7 +42,9 @@ public class ClosedSimilarity extends Similarity{
         Float,
         Geometry
     }
-
+    
+    //multiplicity of attributes in a query, needed when calculating score
+    private static final Map<String, Long> attributeMultiplicity = new HashMap<>();
 
     /** list of fields/attributes and their weights */
     private static final Map<String, Long> attribWeights = new HashMap<>();
@@ -88,6 +90,7 @@ public class ClosedSimilarity extends Similarity{
     @Override
     public float queryNorm(float valueForNormalization) {
         //float qNorm = 1f/valueForNormalization;
+        attributeMultiplicity.clear();
         log.info("Calculating query norm: "+1f+" valueForNormalization: "+valueForNormalization);
         return 1f;
     }
@@ -204,6 +207,21 @@ public class ClosedSimilarity extends Similarity{
             log.info("Creating scorer: "+weights.desc);
             this.csw = weights;
             this.context = context;
+            
+            //calculating attribute multiplicity
+            for(String term: csw.termInfos.keySet()){
+                QueryTokenInfo qti = csw.termInfos.get(term);
+                if (qti.getAttribute().compareTo("_all")==0){
+                    estimateTermWeight(context.reader(), qti);
+                }
+                String queryAttribute = qti.getAttribute();
+                if (!attributeMultiplicity.containsKey(queryAttribute)){
+                    attributeMultiplicity.put(queryAttribute, 1l);
+                } else {
+                    Long multiplicity = attributeMultiplicity.get(queryAttribute);
+                    attributeMultiplicity.put(queryAttribute, multiplicity+1l);
+                }
+            }
         }
         
         /**
@@ -405,26 +423,11 @@ public class ClosedSimilarity extends Similarity{
         public float score(int doc, float freq) {
             try {
                 log.info("Scoring: ID of the document: "+doc+" Sloppy frequency: "+freq);
-                Document document = context.reader().document(doc);
                 float docCoord = docCoord(doc, context.reader(), csw.termInfos);
 
                 float score = 0;
                 float indexNorm = estimateIndexNorm(context.reader());
                 float termNorm = context.reader().getNormValues(csw.field).get(doc);
-                Map<String, Long> attributeMultiplicity = new HashMap<>();
-                for(String term: csw.termInfos.keySet()){
-                    QueryTokenInfo qti = csw.termInfos.get(term);
-                    if (qti.getAttribute().compareTo("_all")==0){
-                        estimateTermWeight(context.reader(), qti);
-                    }
-                    String queryAttribute = qti.getAttribute();
-                    if (!attributeMultiplicity.containsKey(queryAttribute)){
-                        attributeMultiplicity.put(queryAttribute, 1l);
-                    } else {
-                        Long multiplicity = attributeMultiplicity.get(queryAttribute);
-                        attributeMultiplicity.put(queryAttribute, multiplicity+1l);
-                    }
-                }
                 
                 for(String term: csw.termInfos.keySet()){
                     QueryTokenInfo qti = csw.termInfos.get(term);
