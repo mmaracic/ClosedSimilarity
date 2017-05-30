@@ -200,3 +200,58 @@ POST ar_test/Address/_search
         "match_all" : {}
     }
 }
+
+POST ar_test/Address/_search
+{
+    "query": { 
+  "bool" : {
+    "should" : [ {
+      "match" : {
+        "streetName" : {
+          "query" : "Ulica Dobriše Cesarića",
+          "type" : "boolean",
+          "boost" : 1.0,
+          "fuzziness" : "AUTO"
+        }
+      }
+    }, {
+      "match" : {
+        "streetNumber" : {
+          "query" : "21",
+          "type" : "boolean",
+          "boost" : 1.0,
+          "fuzziness" : "AUTO"
+        }
+      }
+    }, {
+      "match" : {
+        "settlementName" : {
+          "query" : "Cista provo",
+          "type" : "boolean",
+          "boost" : 1.0,
+          "fuzziness" : "AUTO"
+        }
+      }
+    }, {
+      "match" : {
+        "postalCode" : {
+          "query" : 52341,
+          "type" : "boolean",
+          "boost" : 1.0,
+          "fuzziness" : "AUTO"
+        }
+      }
+    }, {
+      "match" : {
+        "countyName" : {
+          "query" : "kanfanar",
+          "type" : "boolean",
+          "boost" : 1.0,
+          "fuzziness" : "AUTO"
+        }
+      }
+    } ],
+    "minimum_should_match" : "1"
+  }
+}
+}

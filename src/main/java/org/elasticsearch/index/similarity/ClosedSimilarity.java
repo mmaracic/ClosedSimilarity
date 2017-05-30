@@ -15,6 +15,7 @@ import org.apache.lucene.index.FieldInvertState;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
@@ -55,6 +56,13 @@ public class ClosedSimilarity extends Similarity{
     private final Map<String, AttributeType> attribTypes = new HashMap<>();
     
     /**
+     * True when initialized or algorithm was scoring a document
+     * false while creating new scorers
+     * awful hack to reset term type statistics
+     */
+    private boolean wasScoringState = true;
+
+    /**
      * Query term matching
      * @param overlap the number of query terms matched in the document
      * @param maxOverlap the total number of terms in the query
@@ -76,7 +84,6 @@ public class ClosedSimilarity extends Similarity{
     @Override
     public float queryNorm(float valueForNormalization) {
         //float qNorm = 1f/valueForNormalization;
-        attributeMultiplicity.clear();
         log.info("Calculating query norm: "+1f+" valueForNormalization: "+valueForNormalization);
         return 1f;
     }
@@ -188,11 +195,17 @@ public class ClosedSimilarity extends Similarity{
         private final ClosedSimWeight csw;
         
         private final LeafReaderContext context;
-
+        
         ClosedSimScorer(ClosedSimWeight weights, LeafReaderContext context){
             log.info("Creating scorer: "+weights.desc);
             this.csw = weights;
             this.context = context;
+            
+            //resetting attribute multiplicity
+            if (wasScoringState){
+                attributeMultiplicity.clear();
+                wasScoringState = false;
+            }
             
             //calculating attribute multiplicity
             for(String term: csw.termInfos.keySet()){
@@ -407,13 +420,23 @@ public class ClosedSimilarity extends Similarity{
                 
         @Override
         public float score(int doc, float freq) {
+            wasScoringState = true;
+            //scoring
             try {
                 log.info("Scoring: ID of the document: "+doc+" Sloppy frequency: "+freq);
                 float docCoord = docCoord(doc, context.reader(), csw.termInfos);
-
+                
                 float score = 0;
                 float indexNorm = estimateIndexNorm(context.reader());
-                float termNorm = context.reader().getNormValues(csw.field).get(doc);
+                float termNorm = 1l;
+                NumericDocValues ndv = context.reader().getNormValues(csw.field);
+                if (ndv != null){
+                    termNorm = ndv.get(doc);
+                }                
+                else if (attribWeights.containsKey(csw.field)){
+                    termNorm = attribWeights.get(csw.field);
+                }
+                log.info("Initial termNorm for field for: "+csw.field+" has value: "+termNorm);
                 
                 for(String term: csw.termInfos.keySet()){
                     QueryTokenInfo qti = csw.termInfos.get(term);
