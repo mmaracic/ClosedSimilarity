@@ -112,11 +112,19 @@ public class ClosedSimilarity extends Similarity{
         Map<String, QueryTokenInfo> termIdfs = new HashMap<>();
         String desc="Query field: "+collectionStats.field()+" Terms: ";
         final long max = collectionStats.maxDoc();
+        AttributeType type = attribTypes.get(collectionStats.field());
         for (final TermStatistics stat : termStats) {
             final long df = stat.docFreq();
             final float termIdf = idf(df, max);
             QueryTokenInfo qti = new QueryTokenInfo(stat.term(), collectionStats.field(),df,termIdf);
-            termIdfs.put(stat.term().utf8ToString(), qti);
+            String strTerm = null;
+            if (type == AttributeType.Integer){
+                int resultNumber = NumericUtils.prefixCodedToInt(new BytesRef(stat.term().bytes));
+                strTerm = Integer.toString(resultNumber);
+            } else {
+                strTerm = stat.term().utf8ToString();
+            }
+            termIdfs.put(strTerm, qti);
 //            log.info("Query term: "+stat.term().utf8ToString()+" Binary: "+stat.term().toString()+" frequency: "+df+" Appearance: "+df);
             desc += stat.term().utf8ToString() + " # ";
         }
