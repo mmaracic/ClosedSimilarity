@@ -7,8 +7,8 @@ DELETE ar_test
 PUT ar_test
 {
     "settings" : {
-        "number_of_shards" : 5,
-    	"number_of_replicas" : 1,
+        "number_of_shards" : 1,
+    	"number_of_replicas" : 0,
     	"analysis" : {
     		"filter" : {
     			"croatian_stop" : {
@@ -41,22 +41,22 @@ PUT ar_test
     	"similarity" : {
     		"default" : {
     			"type" : "closed-similarity",
-                        "attributeWeights": {
-                            "streetNumberAlfa": 1,
-                            "streetNumber": 2,
-                            "streetName": 4,
-                            "postalCode": 8,
-                            "settlementName": 16,
-                            "countyName": 32
-                        },
-                        "attributeTypes": {
-                            "streetNumberAlfa": "String",
-                            "streetNumber": "String",
-                            "streetName": "String",
-                            "postalCode": "Integer",
-                            "settlementName": "String",
-                            "countyName": "String"
-                        }                
+                "attributeWeights": {
+                    "streetNumberAlfa": 1,
+                    "streetNumber": 2,
+                    "streetName": 4,
+                    "postalCode": 8,
+                    "settlementName": 16,
+                    "countyName": 32
+            	},
+                "attributeTypes": {
+                    "streetNumberAlfa": "String",
+                    "streetNumber": "String",
+                    "streetName": "String",
+                    "postalCode": "Integer",
+                    "settlementName": "String",
+                    "countyName": "String"
+                }                
     		}
     	}
     },
@@ -64,43 +64,39 @@ PUT ar_test
         "Address" : {
             "properties" : {
                 "streetNumber" : {
-            		"type" : "string",
+                    "type" : "string",
                     "term_vector": "with_positions_offsets",
                     "store" : true
             	},
             	"streetNumberAlfa" : {
-            		"type" : "string",
+                    "type" : "string",
                     "term_vector": "with_positions_offsets",
                     "store" : true
             	},
             	"geometry" : {
-            		"type" : "geo_point"
-            	},
-            	"_id" : {
-            		"type" : "integer"
+                    "type" : "geo_point"
             	},
             	"streetName" : {
-            		"type" : "string",
+                    "type" : "string",
                     "store" : true,
                     "term_vector": "with_positions_offsets"
             	},
             	"settlementName" : {
-            		"type" : "string",
+                    "type" : "string",
                     "term_vector": "with_positions_offsets",
                     "store" : true
             	},
             	"postalOfficeName" : {
-            		"type" : "string",
+                    "type" : "string",
                     "term_vector": "with_positions_offsets",
                     "store" : true
             	},
             	"postalCode" : {
-            		"type" : "integer",
-                    "term_vector": "with_positions_offsets",
+                    "type" : "integer",
                     "store" : true
             	},
             	"countyName" : {
-            		"type" : "string",
+                    "type" : "string",
                     "term_vector": "with_positions_offsets",
                     "store" : true
             	}
